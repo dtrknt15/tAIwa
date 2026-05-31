@@ -1,3 +1,19 @@
+---
+title: TAIwa
+emoji: 💬
+colorFrom: yellow
+colorTo: purple
+sdk: gradio
+sdk_version: 6.5.1
+app_file: main.py
+pinned: false
+hf_oauth: true
+hf_oauth_scopes:
+- inference-api
+license: apache-2.0
+short_description: 複数のAIと対話できるチャットアプリです。
+---
+
 # 🌐 tAIwa - マルチペルソナ チャットルーム
 
 **tAIwa** は、複数のAIエージェント（ペルソナ）と人間（あなた）が、一つのチャットルームに集まって設定したテーマ（アジェンダ）について自由に対話・討論を行うことができる Gradio ベースの対話システムです。
