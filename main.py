@@ -17,7 +17,7 @@ if IS_HF_SPACE:
     # If in HF Space, default to HF Serverless Inference with Llama-3 model
     DEFAULT_API_KEY = DEFAULT_HF_TOKEN
     DEFAULT_BASE_URL = "https://router.huggingface.co/v1"
-    DEFAULT_MODEL = "meta-llama/Meta-Llama-3-8B-Instruct"
+    DEFAULT_MODEL = "Qwen/Qwen3.5-9B"
 else:
     # Default local configuration
     DEFAULT_API_KEY = DEFAULT_OPENAI_KEY
@@ -929,7 +929,8 @@ def build_app():
                 nn_gradio.Button(interactive=False), # btn_step
                 nn_gradio.Button(interactive=False), # btn_step_bottom
                 nn_gradio.Row(visible=show_human_input),
-                nn_gradio.Button(interactive=False) # Disable setup button after starting
+                nn_gradio.Button(interactive=False), # Disable setup button after starting
+                nn_gradio.Button(interactive=False)  # btn_undo
             )
 
         def proceed_next_turn(lang, history, current_idx, agenda, personas, api_key, base_url, model, autoplay):
@@ -937,7 +938,8 @@ def build_app():
             if not personas:
                 yield (
                     LOCALIZED_STRINGS[lang]["turn_start"], history, current_idx, "", 
-                    nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=False)
+                    nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=False),
+                    nn_gradio.Button(interactive=len(history) > 1), autoplay
                 )
                 return
             
@@ -950,7 +952,8 @@ def build_app():
                     status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
                     yield (
                         status_msg, history, current_idx, render_chat_html(history), 
-                        nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=True)
+                        nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=True),
+                        nn_gradio.Button(interactive=len(history) > 1), autoplay
                     )
                     break
                 
@@ -959,7 +962,8 @@ def build_app():
                     status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
                     yield (
                         status_msg, history, current_idx, render_chat_html(history), 
-                        nn_gradio.Button(interactive=not show_human_input), nn_gradio.Button(interactive=not show_human_input), nn_gradio.Row(visible=show_human_input)
+                        nn_gradio.Button(interactive=not show_human_input), nn_gradio.Button(interactive=not show_human_input), nn_gradio.Row(visible=show_human_input),
+                        nn_gradio.Button(interactive=len(history) > 1), autoplay
                     )
                     break
                 
@@ -1009,7 +1013,9 @@ def build_app():
                     render_chat_html(history),
                     nn_gradio.Button(interactive=not show_human_input and not autoplay),
                     nn_gradio.Button(interactive=not show_human_input and not autoplay),
-                    nn_gradio.Row(visible=show_human_input)
+                    nn_gradio.Row(visible=show_human_input),
+                    nn_gradio.Button(interactive=len(history) > 1),
+                    autoplay
                 )
                 
                 if autoplay:
