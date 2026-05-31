@@ -71,8 +71,7 @@ body, html {
 
 /* Glassmorphism panels in Light Mode */
 .glass-panel {
-    background: rgba(255, 255, 255, 0.7) !important;
-    backdrop-filter: blur(12px) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
     border: 1px solid rgba(0, 0, 0, 0.06) !important;
     border-radius: 16px !important;
     padding: 20px !important;
@@ -158,8 +157,7 @@ body, html {
 
 /* Glassmorphism panels in Dark Mode */
 .dark .glass-panel {
-    background: rgba(22, 28, 45, 0.6) !important;
-    backdrop-filter: blur(12px) !important;
+    background: rgba(22, 28, 45, 0.95) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
 }
@@ -256,8 +254,8 @@ body, html {
 HEAD_HTML = '<meta name="google" content="notranslate">'
 
 # --- Localization & Translation Setup ---
-i18n = nn_gradio.I18n(
-    en={
+I18N_DATA = {
+    "en": {
         "app_title": "# 🌐 tAIwa - Multi-Persona Chatroom",
         "app_desc": "A tool where multiple AI agents (and you) can converse freely.",
         "api_config": "### ⚙️ 1. OpenAI-compatible API Configuration",
@@ -297,7 +295,7 @@ i18n = nn_gradio.I18n(
         "btn_save": "💾 Save Log",
         "file_label": "Download Log"
     },
-    ja={
+    "ja": {
         "app_title": "# 🌐 tAIwa - マルチペルソナ チャットルーム",
         "app_desc": "複数のAIエージェント（とあなた）が自由に対話できるツールです。",
         "api_config": "### ⚙️ 1. OpenAI互換API設定",
@@ -337,7 +335,15 @@ i18n = nn_gradio.I18n(
         "btn_save": "💾 ログを保存",
         "file_label": "ログのダウンロード"
     }
-)
+}
+
+if not IS_HF_SPACE:
+    I18N_DATA["en"]["api_key_info"] = "Please enter your OpenAI API Key."
+    I18N_DATA["ja"]["api_key_info"] = "OpenAI APIキーを入力してください。"
+    I18N_DATA["en"]["api_key_placeholder"] = "API Key..."
+    I18N_DATA["ja"]["api_key_placeholder"] = "APIキーを入力..."
+
+i18n = nn_gradio.I18n(**I18N_DATA)
 
 def get_language(request: nn_gradio.Request = None) -> str:
     """Helper to detect language from request headers."""
@@ -472,11 +478,11 @@ def get_preset_choices(lang):
         return ["カスタム（手動設定）"] + list(PRESETS["ja"].keys())
     return ["Custom (Manual Setup)"] + list(PRESETS["en"].keys())
 
-def apply_preset(preset_name, request: nn_gradio.Request):
-    lang = get_language(request)
+def apply_preset(preset_name, lang):
     is_custom = preset_name in ["Custom (Manual Setup)", "カスタム（手動設定）", None, ""]
+    no_change = [nn_gradio.Slider()] + [nn_gradio.Textbox(), nn_gradio.Checkbox(), nn_gradio.Textbox()] * 4
     if is_custom:
-        return [nn_gradio.update()] * 13
+        return no_change
     
     preset_data = None
     if lang == "ja" and preset_name in PRESETS["ja"]:
@@ -490,7 +496,7 @@ def apply_preset(preset_name, request: nn_gradio.Request):
                 break
                 
     if not preset_data:
-        return [nn_gradio.update()] * 13
+        return no_change
         
     num_personas = len(preset_data)
     outputs = [nn_gradio.Slider(value=num_personas)]
@@ -501,19 +507,17 @@ def apply_preset(preset_name, request: nn_gradio.Request):
             outputs.append(nn_gradio.Checkbox(value=p.get("is_human", False)))
             outputs.append(nn_gradio.Textbox(value=p["prompt"]))
         else:
-            outputs.append(nn_gradio.update())
-            outputs.append(nn_gradio.update())
-            outputs.append(nn_gradio.update())
+            outputs.append(nn_gradio.Textbox())
+            outputs.append(nn_gradio.Checkbox())
+            outputs.append(nn_gradio.Textbox())
             
     return outputs
 
-def set_custom_preset(request: nn_gradio.Request):
-    lang = get_language(request)
+def set_custom_preset(lang):
     custom_val = "カスタム（手動設定）" if lang == "ja" else "Custom (Manual Setup)"
-    return nn_gradio.Dropdown(value=custom_val)
+    return custom_val
 
-def get_random_agenda(request: nn_gradio.Request):
-    lang = get_language(request)
+def get_random_agenda(lang):
     agendas = RANDOM_AGENDAS.get(lang, RANDOM_AGENDAS["en"])
     return random.choice(agendas)
 
@@ -538,8 +542,7 @@ def generate_markdown_log(history, agenda, lang):
             
     return "\n".join(lines)
 
-def copy_log_python(history, agenda, request: nn_gradio.Request):
-    lang = get_language(request)
+def copy_log_python(history, agenda, lang):
     if not history:
         msg = "Chat log is empty. / チャットログが空です。"
         nn_gradio.Warning(msg)
@@ -550,8 +553,7 @@ def copy_log_python(history, agenda, request: nn_gradio.Request):
     nn_gradio.Info(msg)
     return markdown_text
 
-def export_chat_log(history, agenda, request: nn_gradio.Request):
-    lang = get_language(request)
+def export_chat_log(history, agenda, lang):
     if not history:
         nn_gradio.Warning("Chat log is empty. / チャットログが空です。")
         return None
@@ -643,7 +645,7 @@ def update_models_dropdown(api_key, base_url, current_model):
             api_key = "lm-studio"
         else:
             choices = [current_model] if current_model else [DEFAULT_MODEL]
-            return nn_gradio.Dropdown(choices=choices, value=current_model)
+            return nn_gradio.Dropdown(choices=choices, value=current_model, interactive=True)
     
     try:
         client = openai.OpenAI(
@@ -659,11 +661,11 @@ def update_models_dropdown(api_key, base_url, current_model):
             choices = model_ids
             if current_model and current_model not in choices:
                 choices = [current_model] + choices
-        return nn_gradio.Dropdown(choices=choices, value=current_model)
+        return nn_gradio.Dropdown(choices=choices, value=current_model, interactive=True)
     except Exception as e:
         print(f"Error fetching models: {e}")
         choices = [current_model] if current_model else [DEFAULT_MODEL]
-        return nn_gradio.Dropdown(choices=choices, value=current_model)
+        return nn_gradio.Dropdown(choices=choices, value=current_model, interactive=True)
 
 # Gradio interface build function
 def build_app():
@@ -674,25 +676,35 @@ def build_app():
         state_participants = nn_gradio.State([])      # List of persona dicts
         state_current_idx = nn_gradio.State(0)       # Index in the participant list
         state_agenda = nn_gradio.State("")           # Topic/Agenda
+        state_lang = nn_gradio.State("en")           # Language State ("en" or "ja")
         
-        nn_gradio.Markdown(i18n("app_title"))
-        nn_gradio.Markdown(i18n("app_desc"))
+        # Language Switcher Radio on top
+        with nn_gradio.Row():
+            language_selector = nn_gradio.Radio(
+                choices=["日本語", "English"],
+                value="English",
+                label="Language / 言語",
+                scale=2
+            )
+            
+        app_title_md = nn_gradio.Markdown(I18N_DATA["en"]["app_title"])
+        app_desc_md = nn_gradio.Markdown(I18N_DATA["en"]["app_desc"])
         
         with nn_gradio.Row():
             # --- LEFT COLUMN: SETTINGS ---
             with nn_gradio.Column(scale=4, elem_classes=["glass-panel"]):
-                nn_gradio.Markdown(i18n("api_config"))
+                api_config_md = nn_gradio.Markdown(I18N_DATA["en"]["api_config"])
                 api_key_input = nn_gradio.Textbox(
-                    label=i18n("api_key"), 
+                    label=I18N_DATA["en"]["api_key"], 
                     type="password", 
-                    placeholder=i18n("api_key_placeholder"), 
-                    info=i18n("api_key_info"), 
+                    placeholder=I18N_DATA["en"]["api_key_placeholder"], 
+                    info=I18N_DATA["en"]["api_key_info"], 
                     value=DEFAULT_API_KEY
                 )
-                base_url_input = nn_gradio.Textbox(label=i18n("base_url"), placeholder="https://api.openai.com/v1", value=DEFAULT_BASE_URL)
+                base_url_input = nn_gradio.Textbox(label=I18N_DATA["en"]["base_url"], placeholder="https://api.openai.com/v1", value=DEFAULT_BASE_URL)
                 with nn_gradio.Row(elem_classes=["align-end"]):
                     model_input = nn_gradio.Dropdown(
-                        label=i18n("model_name"),
+                        label=I18N_DATA["en"]["model_name"],
                         choices=[DEFAULT_MODEL],
                         value=DEFAULT_MODEL,
                         allow_custom_value=True,
@@ -700,26 +712,27 @@ def build_app():
                     )
                     btn_fetch_models = nn_gradio.Button("🔄", scale=0, min_width=50, elem_classes=["refresh-btn"])
                 
-                nn_gradio.Markdown(i18n("persona_config"))
+                persona_config_md = nn_gradio.Markdown(I18N_DATA["en"]["persona_config"])
                 preset_dropdown = nn_gradio.Dropdown(
-                    label=i18n("preset_label"),
+                    label=I18N_DATA["en"]["preset_label"],
                     choices=["Custom (Manual Setup)"],
                     value="Custom (Manual Setup)",
                     interactive=True
                 )
-                persona_count = nn_gradio.Slider(minimum=2, maximum=4, step=1, value=3, label=i18n("num_personas"))
+                persona_count = nn_gradio.Slider(minimum=2, maximum=4, step=1, value=3, label=I18N_DATA["en"]["num_personas"])
                 
                 # Persona Configuration Blocks (Max 4)
                 persona_configs = []
                 for i in range(4):
                     with nn_gradio.Group(visible=(i < 3)) as group:
-                        nn_gradio.Markdown(i18n(f"persona_title_{i+1}"))
+                        p_title = nn_gradio.Markdown(I18N_DATA["en"][f"persona_title_{i+1}"])
                         with nn_gradio.Row():
-                            name = nn_gradio.Textbox(label=i18n("name_label"), value=i18n(f"persona_default_name_{i+1}"), scale=3)
-                            is_human = nn_gradio.Checkbox(label=i18n("human_label"), value=False, scale=1)
-                        prompt = nn_gradio.Textbox(label=i18n("system_prompt_label"), value=i18n("system_prompt_default"), lines=2)
+                            name = nn_gradio.Textbox(label=I18N_DATA["en"]["name_label"], value=I18N_DATA["en"][f"persona_default_name_{i+1}"], scale=3)
+                            is_human = nn_gradio.Checkbox(label=I18N_DATA["en"]["human_label"], value=False, scale=1)
+                        prompt = nn_gradio.Textbox(label=I18N_DATA["en"]["system_prompt_label"], value=I18N_DATA["en"]["system_prompt_default"], lines=2)
                         persona_configs.append({
                             "group": group,
+                            "title_md": p_title,
                             "name": name,
                             "is_human": is_human,
                             "prompt": prompt
@@ -740,47 +753,47 @@ def build_app():
                 
             # --- RIGHT COLUMN: CHATROOM ---
             with nn_gradio.Column(scale=6, elem_classes=["glass-panel"]):
-                nn_gradio.Markdown(i18n("chatroom_panel"))
+                chatroom_panel_md = nn_gradio.Markdown(I18N_DATA["en"]["chatroom_panel"])
                 with nn_gradio.Row():
                     agenda_input = nn_gradio.Textbox(
-                        label=i18n("agenda_label"), 
-                        placeholder=i18n("agenda_placeholder"), 
-                        value=i18n("agenda_default"),
+                        label=I18N_DATA["en"]["agenda_label"], 
+                        placeholder=I18N_DATA["en"]["agenda_placeholder"], 
+                        value=I18N_DATA["en"]["agenda_default"],
                         scale=8
                     )
                     btn_random_agenda = nn_gradio.Button("🎲", scale=0, min_width=50, elem_classes=["refresh-btn"])
                 
                 with nn_gradio.Row():
-                    btn_initialize = nn_gradio.Button(i18n("btn_start"), elem_classes=["start-btn"], scale=2)
-                    btn_step = nn_gradio.Button(i18n("btn_next"), variant="secondary", interactive=False, scale=2)
-                    autoplay_check = nn_gradio.Checkbox(label=i18n("autoplay_label"), value=False, scale=1)
-                    btn_reset = nn_gradio.Button(i18n("btn_reset"), variant="stop", scale=1)
+                    btn_initialize = nn_gradio.Button(I18N_DATA["en"]["btn_start"], elem_classes=["start-btn"], scale=2)
+                    btn_step = nn_gradio.Button(I18N_DATA["en"]["btn_next"], variant="secondary", interactive=False, scale=2)
+                    autoplay_check = nn_gradio.Checkbox(label=I18N_DATA["en"]["autoplay_label"], value=False, scale=1)
+                    btn_reset = nn_gradio.Button(I18N_DATA["en"]["btn_reset"], variant="stop", scale=1)
                 
-                status_box = nn_gradio.Markdown(i18n("setup_instruction"))
+                status_box = nn_gradio.Markdown(LOCALIZED_STRINGS["en"]["setup_instruction"])
                 
                 # Visual Chat Log (Custom styled HTML display for color-coding)
                 chat_display = nn_gradio.HTML(
-                    value=i18n("empty_chat_log"),
+                    value=LOCALIZED_STRINGS["en"]["empty_chat_log"],
                     label="Chat Log"
                 )
                 
                 with nn_gradio.Row():
-                    btn_step_bottom = nn_gradio.Button(i18n("btn_next"), variant="secondary", interactive=False, scale=2)
-                    btn_copy = nn_gradio.Button(i18n("btn_copy"), scale=1)
-                    btn_export = nn_gradio.Button(i18n("btn_save"), scale=1)
+                    btn_step_bottom = nn_gradio.Button(I18N_DATA["en"]["btn_next"], variant="secondary", interactive=False, scale=2)
+                    btn_copy = nn_gradio.Button(I18N_DATA["en"]["btn_copy"], scale=1)
+                    btn_export = nn_gradio.Button(I18N_DATA["en"]["btn_save"], scale=1)
                 
                 # Hidden components for copying / downloading
                 hidden_markdown = nn_gradio.Textbox(visible=False)
-                download_file = nn_gradio.File(label=i18n("file_label"), visible=False)
+                download_file = nn_gradio.File(label=I18N_DATA["en"]["file_label"], visible=False)
                 
                 # Human Response input row (initially hidden/disabled)
                 with nn_gradio.Row(visible=False) as human_input_row:
                     human_textbox = nn_gradio.Textbox(
-                        label=i18n("human_resp_label"), 
-                        placeholder=i18n("human_resp_placeholder"),
+                        label=I18N_DATA["en"]["human_resp_label"], 
+                        placeholder=I18N_DATA["en"]["human_resp_placeholder"],
                         scale=4
                     )
-                    btn_submit_human = nn_gradio.Button(i18n("btn_send"), variant="primary", scale=1)
+                    btn_submit_human = nn_gradio.Button(I18N_DATA["en"]["btn_send"], variant="primary", scale=1)
 
         # --- Functions and Event Logic ---
         
@@ -792,7 +805,6 @@ def build_app():
             html_content = ["<div style='display: flex; flex-direction: column; gap: 8px;'>"]
             for speaker, text, color_idx in history_list:
                 clean_text = text.replace("\n", "<br>")
-                # Escape markdown block quotes or HTML formatting inside text for safety
                 html_content.append(f"""
                 <div class="chat-bubble bubble-persona-{color_idx}">
                     <strong>{speaker}</strong>:
@@ -802,10 +814,8 @@ def build_app():
             html_content.append("</div>")
             return "".join(html_content)
 
-        def initialize_conversation(request: nn_gradio.Request, count, agenda, api_key, base_url, model, *args):
+        def initialize_conversation(lang, count, agenda, api_key, base_url, model, *args):
             """Collects configurations and starts the conversation flow."""
-            lang = get_language(request)
-            
             # Setup list of active personas
             personas = []
             for i in range(count):
@@ -831,7 +841,6 @@ def build_app():
             # Format UI for the next turn
             status_msg, show_human_input, human_name = update_ui_state(lang, current_idx, personas)
             
-            # Return updated states and elements
             return (
                 status_msg,
                 initial_history,
@@ -845,9 +854,8 @@ def build_app():
                 nn_gradio.Button(interactive=False) # Disable setup button after starting
             )
 
-        def proceed_next_turn(request: nn_gradio.Request, history, current_idx, agenda, personas, api_key, base_url, model, autoplay):
+        def proceed_next_turn(lang, history, current_idx, agenda, personas, api_key, base_url, model, autoplay):
             """Executes the AI turn or proceeds to wait for human turn."""
-            lang = get_language(request)
             if not personas:
                 yield (
                     LOCALIZED_STRINGS[lang]["turn_start"], history, current_idx, "", 
@@ -916,7 +924,6 @@ def build_app():
                 # Determine state for the next turn
                 status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
                 
-                # Yield current state (disable step buttons during autoplay to prevent duplicate clicks)
                 yield (
                     status_msg,
                     history,
@@ -932,7 +939,7 @@ def build_app():
 
         # Collect arguments for initialization helper
         init_inputs = [
-            persona_count, agenda_input, api_key_input, base_url_input, model_input
+            state_lang, persona_count, agenda_input, api_key_input, base_url_input, model_input
         ] + [cfg["name"] for cfg in persona_configs] + [cfg["is_human"] for cfg in persona_configs] + [cfg["prompt"] for cfg in persona_configs]
 
         btn_fetch_models.click(
@@ -951,7 +958,7 @@ def build_app():
         ).then(
             fn=proceed_next_turn,
             inputs=[
-                state_history, state_current_idx, state_agenda, state_participants,
+                state_lang, state_history, state_current_idx, state_agenda, state_participants,
                 api_key_input, base_url_input, model_input, autoplay_check
             ],
             outputs=[
@@ -963,7 +970,7 @@ def build_app():
         btn_step.click(
             fn=proceed_next_turn,
             inputs=[
-                state_history, state_current_idx, state_agenda, state_participants,
+                state_lang, state_history, state_current_idx, state_agenda, state_participants,
                 api_key_input, base_url_input, model_input, autoplay_check
             ],
             outputs=[
@@ -975,7 +982,7 @@ def build_app():
         btn_step_bottom.click(
             fn=proceed_next_turn,
             inputs=[
-                state_history, state_current_idx, state_agenda, state_participants,
+                state_lang, state_history, state_current_idx, state_agenda, state_participants,
                 api_key_input, base_url_input, model_input, autoplay_check
             ],
             outputs=[
@@ -984,11 +991,9 @@ def build_app():
             ]
         )
 
-        def handle_human_response(request: nn_gradio.Request, human_text, history, current_idx, personas):
+        def handle_human_response(lang, human_text, history, current_idx, personas):
             """Processes human response text input and advances the turn."""
-            lang = get_language(request)
             if not human_text.strip():
-                # Don't allow empty response
                 status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
                 return (
                     status_msg, history, current_idx, render_chat_html(history), 
@@ -996,15 +1001,10 @@ def build_app():
                 )
             
             current_persona = personas[current_idx]
-            
-            # Append human reply
             new_item = (current_persona["name"], human_text.strip(), current_persona["color_idx"])
             updated_history = history + [new_item]
             
-            # Move to next turn
             next_idx = (current_idx + 1) % len(personas)
-            
-            # Determine state for the next turn
             status_msg, show_human_input, _ = update_ui_state(lang, next_idx, personas)
             
             return (
@@ -1020,7 +1020,7 @@ def build_app():
 
         btn_submit_human.click(
             fn=handle_human_response,
-            inputs=[human_textbox, state_history, state_current_idx, state_participants],
+            inputs=[state_lang, human_textbox, state_history, state_current_idx, state_participants],
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
                 btn_step, btn_step_bottom, human_input_row, human_textbox
@@ -1028,7 +1028,7 @@ def build_app():
         ).then(
             fn=proceed_next_turn,
             inputs=[
-                state_history, state_current_idx, state_agenda, state_participants,
+                state_lang, state_history, state_current_idx, state_agenda, state_participants,
                 api_key_input, base_url_input, model_input, autoplay_check
             ],
             outputs=[
@@ -1037,10 +1037,9 @@ def build_app():
             ]
         )
         
-        # Also support pressing Enter in the human textbox to submit
         human_textbox.submit(
             fn=handle_human_response,
-            inputs=[human_textbox, state_history, state_current_idx, state_participants],
+            inputs=[state_lang, human_textbox, state_history, state_current_idx, state_participants],
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
                 btn_step, btn_step_bottom, human_input_row, human_textbox
@@ -1048,7 +1047,7 @@ def build_app():
         ).then(
             fn=proceed_next_turn,
             inputs=[
-                state_history, state_current_idx, state_agenda, state_participants,
+                state_lang, state_history, state_current_idx, state_agenda, state_participants,
                 api_key_input, base_url_input, model_input, autoplay_check
             ],
             outputs=[
@@ -1057,9 +1056,8 @@ def build_app():
             ]
         )
 
-        def reset_room(request: nn_gradio.Request):
+        def reset_room(lang):
             """Resets the chatroom to pristine state."""
-            lang = get_language(request)
             return (
                 LOCALIZED_STRINGS[lang]["setup_instruction"],
                 [],
@@ -1076,7 +1074,7 @@ def build_app():
 
         btn_reset.click(
             fn=reset_room,
-            inputs=[],
+            inputs=[state_lang],
             outputs=[
                 status_box, state_history, state_current_idx, state_agenda, 
                 state_participants, chat_display, btn_step, btn_step_bottom, 
@@ -1087,27 +1085,27 @@ def build_app():
         # Preset template selection event
         preset_dropdown.change(
             fn=apply_preset,
-            inputs=[preset_dropdown],
+            inputs=[preset_dropdown, state_lang],
             outputs=[persona_count] + [cfg[key] for cfg in persona_configs for key in ["name", "is_human", "prompt"]]
         )
 
         # Set preset selection to "Custom" if any persona configurations are manually edited
         for cfg in persona_configs:
-            cfg["name"].change(fn=set_custom_preset, inputs=[], outputs=[preset_dropdown])
-            cfg["is_human"].change(fn=set_custom_preset, inputs=[], outputs=[preset_dropdown])
-            cfg["prompt"].change(fn=set_custom_preset, inputs=[], outputs=[preset_dropdown])
+            cfg["name"].change(fn=set_custom_preset, inputs=[state_lang], outputs=[preset_dropdown])
+            cfg["is_human"].change(fn=set_custom_preset, inputs=[state_lang], outputs=[preset_dropdown])
+            cfg["prompt"].change(fn=set_custom_preset, inputs=[state_lang], outputs=[preset_dropdown])
 
         # Random agenda event
         btn_random_agenda.click(
             fn=get_random_agenda,
-            inputs=[],
+            inputs=[state_lang],
             outputs=[agenda_input]
         )
 
-        # Copy log event (Python sets notification and formats, JS copies to clipboard)
+        # Copy log event
         btn_copy.click(
             fn=copy_log_python,
-            inputs=[state_history, state_agenda],
+            inputs=[state_history, state_agenda, state_lang],
             outputs=[hidden_markdown]
         ).then(
             fn=None,
@@ -1123,20 +1121,78 @@ def build_app():
         # Export log event
         btn_export.click(
             fn=export_chat_log,
-            inputs=[state_history, state_agenda],
+            inputs=[state_history, state_agenda, state_lang],
             outputs=[download_file]
         )
 
-        # Load presets on page load
-        def load_presets(request: nn_gradio.Request):
+        # Unified language switching logic
+        def change_language(lang_choice, current_model):
+            lang = "ja" if lang_choice == "日本語" else "en"
+            
+            presets_choices = get_preset_choices(lang)
+            preset_val = presets_choices[0]
+            
+            updates = [
+                lang,
+                nn_gradio.Markdown(value=I18N_DATA[lang]["app_title"]),
+                nn_gradio.Markdown(value=I18N_DATA[lang]["app_desc"]),
+                nn_gradio.Markdown(value=I18N_DATA[lang]["api_config"]),
+                nn_gradio.Textbox(label=I18N_DATA[lang]["api_key"], placeholder=I18N_DATA[lang]["api_key_placeholder"], info=I18N_DATA[lang]["api_key_info"], interactive=True),
+                nn_gradio.Textbox(label=I18N_DATA[lang]["base_url"], interactive=True),
+                nn_gradio.Dropdown(label=I18N_DATA[lang]["model_name"], choices=[current_model] if current_model else [DEFAULT_MODEL], value=current_model or DEFAULT_MODEL, interactive=True),
+                nn_gradio.Markdown(value=I18N_DATA[lang]["persona_config"]),
+                nn_gradio.Dropdown(label=I18N_DATA[lang]["preset_label"], choices=presets_choices, value=preset_val, interactive=True),
+                nn_gradio.Slider(label=I18N_DATA[lang]["num_personas"], interactive=True),
+                nn_gradio.Markdown(value=I18N_DATA[lang]["chatroom_panel"]),
+                nn_gradio.Textbox(label=I18N_DATA[lang]["agenda_label"], placeholder=I18N_DATA[lang]["agenda_placeholder"], value=I18N_DATA[lang]["agenda_default"], interactive=True),
+                nn_gradio.Button(value=I18N_DATA[lang]["btn_start"], interactive=True),
+                nn_gradio.Button(value=I18N_DATA[lang]["btn_next"]),
+                nn_gradio.Button(value=I18N_DATA[lang]["btn_next"]),
+                nn_gradio.Checkbox(label=I18N_DATA[lang]["autoplay_label"], interactive=True),
+                nn_gradio.Button(value=I18N_DATA[lang]["btn_reset"], interactive=True),
+                nn_gradio.Markdown(value=LOCALIZED_STRINGS[lang]["setup_instruction"]),
+                nn_gradio.HTML(value=LOCALIZED_STRINGS[lang]["empty_chat_log"]),
+                nn_gradio.Button(value=I18N_DATA[lang]["btn_copy"], interactive=True),
+                nn_gradio.Button(value=I18N_DATA[lang]["btn_save"], interactive=True),
+                nn_gradio.File(label=I18N_DATA[lang]["file_label"]),
+                nn_gradio.Textbox(label=I18N_DATA[lang]["human_resp_label"], placeholder=I18N_DATA[lang]["human_resp_placeholder"], interactive=True),
+                nn_gradio.Button(value=I18N_DATA[lang]["btn_send"], interactive=True),
+            ]
+            
+            for i in range(4):
+                updates.append(nn_gradio.Markdown(value=I18N_DATA[lang][f"persona_title_{i+1}"]))
+                updates.append(nn_gradio.Textbox(label=I18N_DATA[lang]["name_label"], value=I18N_DATA[lang][f"persona_default_name_{i+1}"], interactive=True))
+                updates.append(nn_gradio.Checkbox(label=I18N_DATA[lang]["human_label"], interactive=True))
+                updates.append(nn_gradio.Textbox(label=I18N_DATA[lang]["system_prompt_label"], value=I18N_DATA[lang]["system_prompt_default"], interactive=True))
+                
+            return updates
+
+        lang_outputs = [
+            state_lang, app_title_md, app_desc_md, api_config_md, api_key_input, base_url_input, model_input,
+            persona_config_md, preset_dropdown, persona_count, chatroom_panel_md, agenda_input,
+            btn_initialize, btn_step, btn_step_bottom, autoplay_check, btn_reset, status_box, chat_display,
+            btn_copy, btn_export, download_file, human_textbox, btn_submit_human
+        ]
+        for cfg in persona_configs:
+            lang_outputs.extend([cfg["title_md"], cfg["name"], cfg["is_human"], cfg["prompt"]])
+
+        language_selector.change(
+            fn=change_language,
+            inputs=[language_selector, model_input],
+            outputs=lang_outputs
+        )
+
+        # Load presets and detect initial language on page load
+        def load_initial_state(request: nn_gradio.Request):
             lang = get_language(request)
-            choices = get_preset_choices(lang)
-            return nn_gradio.Dropdown(choices=choices, value=choices[0])
+            lang_choice = "日本語" if lang == "ja" else "English"
+            preset_choices = get_preset_choices(lang)
+            return lang_choice, lang, nn_gradio.Dropdown(choices=preset_choices, value=preset_choices[0], interactive=True)
 
         demo.load(
-            fn=load_presets,
+            fn=load_initial_state,
             inputs=[],
-            outputs=[preset_dropdown]
+            outputs=[language_selector, state_lang, preset_dropdown]
         )
 
     return demo
