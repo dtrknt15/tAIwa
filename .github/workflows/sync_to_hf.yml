@@ -1,0 +1,24 @@
+name: Sync to Hugging Face Spaces
+
+on:
+  push:
+    branches: [ main ] # もしメインブランチの名前が master の場合は master に書き換えてください
+
+  # 手動で同期を実行したい場合にも対応
+  workflow_dispatch:
+
+jobs:
+  sync-to-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        # ⚠️「あなたのユーザー名/あなたのスペース名」の部分を書き換えてください
+        run: git push https://oauth2:$HF_TOKEN@huggingface.co/spaces/dtrknt/tAIwa main:main
