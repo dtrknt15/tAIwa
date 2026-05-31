@@ -249,6 +249,24 @@ body, html {
     color: #a5b4fc !important;
     border-color: rgba(165, 180, 252, 0.3) !important;
 }
+
+/* Mobile responsive optimizations */
+@media (max-width: 768px) {
+    .gradio-container {
+        padding: 8px !important;
+    }
+    
+    .glass-panel {
+        padding: 12px !important;
+        margin-bottom: 12px !important;
+        border-radius: 12px !important;
+    }
+    
+    .chat-bubble {
+        padding: 10px 14px !important;
+        font-size: 0.92rem !important;
+    }
+}
 """
 
 HEAD_HTML = '<meta name="google" content="notranslate">'
