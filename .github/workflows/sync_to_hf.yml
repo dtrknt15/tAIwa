@@ -21,4 +21,4 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         # ⚠️「あなたのユーザー名/あなたのスペース名」の部分を書き換えてください
-        run: git push https://oauth2:$HF_TOKEN@huggingface.co/spaces/dtrknt/tAIwa main:main
+        run: git push https://dtrknt:$HF_TOKEN@huggingface.co/spaces/dtrknt/tAIwa main:main
