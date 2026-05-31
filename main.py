@@ -845,36 +845,6 @@ def build_app():
                 nn_gradio.Button(interactive=False) # Disable setup button after starting
             )
 
-        # Collect arguments for initialization helper
-        init_inputs = [
-            persona_count, agenda_input, api_key_input, base_url_input, model_input
-        ] + [cfg["name"] for cfg in persona_configs] + [cfg["is_human"] for cfg in persona_configs] + [cfg["prompt"] for cfg in persona_configs]
-
-        btn_fetch_models.click(
-            fn=update_models_dropdown,
-            inputs=[api_key_input, base_url_input, model_input],
-            outputs=[model_input]
-        )
-
-        btn_initialize.click(
-            fn=initialize_conversation,
-            inputs=init_inputs,
-            outputs=[
-                status_box, state_history, state_current_idx, state_agenda, 
-                state_participants, chat_display, btn_step, btn_step_bottom, human_input_row, btn_initialize
-            ]
-        ).then(
-            fn=proceed_next_turn,
-            inputs=[
-                state_history, state_current_idx, state_agenda, state_participants,
-                api_key_input, base_url_input, model_input, autoplay_check
-            ],
-            outputs=[
-                status_box, state_history, state_current_idx, chat_display,
-                btn_step, btn_step_bottom, human_input_row
-            ]
-        )
-
         def proceed_next_turn(request: nn_gradio.Request, history, current_idx, agenda, personas, api_key, base_url, model, autoplay):
             """Executes the AI turn or proceeds to wait for human turn."""
             lang = get_language(request)
@@ -959,6 +929,36 @@ def build_app():
                 
                 if autoplay:
                     time.sleep(1.5)
+
+        # Collect arguments for initialization helper
+        init_inputs = [
+            persona_count, agenda_input, api_key_input, base_url_input, model_input
+        ] + [cfg["name"] for cfg in persona_configs] + [cfg["is_human"] for cfg in persona_configs] + [cfg["prompt"] for cfg in persona_configs]
+
+        btn_fetch_models.click(
+            fn=update_models_dropdown,
+            inputs=[api_key_input, base_url_input, model_input],
+            outputs=[model_input]
+        )
+
+        btn_initialize.click(
+            fn=initialize_conversation,
+            inputs=init_inputs,
+            outputs=[
+                status_box, state_history, state_current_idx, state_agenda, 
+                state_participants, chat_display, btn_step, btn_step_bottom, human_input_row, btn_initialize
+            ]
+        ).then(
+            fn=proceed_next_turn,
+            inputs=[
+                state_history, state_current_idx, state_agenda, state_participants,
+                api_key_input, base_url_input, model_input, autoplay_check
+            ],
+            outputs=[
+                status_box, state_history, state_current_idx, chat_display,
+                btn_step, btn_step_bottom, human_input_row
+            ]
+        )
 
         btn_step.click(
             fn=proceed_next_turn,
