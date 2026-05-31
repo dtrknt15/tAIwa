@@ -16,8 +16,8 @@ DEFAULT_OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
 if IS_HF_SPACE:
     # If in HF Space, default to HF Serverless Inference with Llama-3 model
     DEFAULT_API_KEY = DEFAULT_HF_TOKEN
-    DEFAULT_BASE_URL = "https://api-inference.huggingface.co/v1"
-    DEFAULT_MODEL = "google/gemma-4-E2B-it"
+    DEFAULT_BASE_URL = "https://router.huggingface.co/v1"
+    DEFAULT_MODEL = "meta-llama/Meta-Llama-3-8B-Instruct"
 else:
     # Default local configuration
     DEFAULT_API_KEY = DEFAULT_OPENAI_KEY
