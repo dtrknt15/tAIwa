@@ -869,7 +869,7 @@ def build_app():
 if __name__ == "__main__":
     demo_app = build_app()
     demo_app.launch(
-        server_name="127.0.0.1",
+        server_name="0.0.0.0" if IS_HF_SPACE else "127.0.0.1",
         server_port=7860,
         share=False,
         css=THEME_CSS,
