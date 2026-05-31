@@ -1,6 +1,5 @@
 import gradio as nn_gradio  # Rename to avoid name shadowing
 import openai
-import json
 import time
 import os
 import random
@@ -17,7 +16,7 @@ if IS_HF_SPACE:
     # If in HF Space, default to HF Serverless Inference with Llama-3 model
     DEFAULT_API_KEY = DEFAULT_HF_TOKEN
     DEFAULT_BASE_URL = "https://router.huggingface.co/v1"
-    DEFAULT_MODEL = "Qwen/Qwen3.5-9B"
+    DEFAULT_MODEL = "google/gemma-4-26B-A4B-it"
 else:
     # Default local configuration
     DEFAULT_API_KEY = DEFAULT_OPENAI_KEY
@@ -117,17 +116,6 @@ body, html {
     color: #451a03 !important;
 }
 
-.persona-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-left: 8px;
-    background: rgba(0, 0, 0, 0.06);
-}
-
 /* --- Dark Mode Colors & Styles --- */
 .dark, .dark .gradio-container {
     --body-background-fill: #0f111a !important;
@@ -191,10 +179,6 @@ body, html {
     background: rgba(245, 158, 11, 0.15) !important;
     border-color: #f59e0b !important;
     color: #fef3c7 !important;
-}
-
-.dark .persona-badge {
-    background: rgba(255, 255, 255, 0.15);
 }
 
 /* Buttons and accents */
@@ -700,7 +684,7 @@ def format_history_for_prompt(chat_log):
 def update_ui_state(lang, current_idx, participants_list):
     """Determines helper messages and handles human vs AI turn UI updates."""
     if not participants_list:
-        return LOCALIZED_STRINGS[lang]["turn_start"], False, ""
+        return LOCALIZED_STRINGS[lang]["turn_start"], False
     
     current_persona = participants_list[current_idx]
     name = current_persona["name"]
@@ -708,10 +692,10 @@ def update_ui_state(lang, current_idx, participants_list):
     
     if is_human:
         status_msg = LOCALIZED_STRINGS[lang]["turn_human"].format(name=name)
-        return status_msg, True, name
+        return status_msg, True
     else:
         status_msg = LOCALIZED_STRINGS[lang]["turn_ai"].format(name=name)
-        return status_msg, False, ""
+        return status_msg, False
 
 def update_models_dropdown(api_key, base_url, current_model):
     """Fetches the list of models from the OpenAI-compatible API and updates the dropdown choices."""
@@ -892,7 +876,7 @@ def build_app():
             html_content.append("</div>")
             return "".join(html_content)
 
-        def initialize_conversation(lang, count, agenda, api_key, base_url, model, *args):
+        def initialize_conversation(lang, count, agenda, *args):
             """Collects configurations and starts the conversation flow."""
             # Setup list of active personas
             personas = []
@@ -917,7 +901,7 @@ def build_app():
             current_idx = 0
             
             # Format UI for the next turn
-            status_msg, show_human_input, human_name = update_ui_state(lang, current_idx, personas)
+            status_msg, show_human_input = update_ui_state(lang, current_idx, personas)
             
             return (
                 status_msg,
@@ -949,7 +933,7 @@ def build_app():
                 
                 # Security check: if current is human, we should not execute AI generation
                 if current_persona["is_human"]:
-                    status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
+                    status_msg, show_human_input = update_ui_state(lang, current_idx, personas)
                     yield (
                         status_msg, history, current_idx, render_chat_html(history), 
                         nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=True),
@@ -959,7 +943,7 @@ def build_app():
                 
                 # If it's not the first run and autoplay is False, we stop at the next turn
                 if not first_run and not autoplay:
-                    status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
+                    status_msg, show_human_input = update_ui_state(lang, current_idx, personas)
                     yield (
                         status_msg, history, current_idx, render_chat_html(history), 
                         nn_gradio.Button(interactive=not show_human_input), nn_gradio.Button(interactive=not show_human_input), nn_gradio.Row(visible=show_human_input),
@@ -1004,7 +988,7 @@ def build_app():
                 first_run = False
                 
                 # Determine state for the next turn
-                status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
+                status_msg, show_human_input = update_ui_state(lang, current_idx, personas)
                 
                 yield (
                     status_msg,
@@ -1023,7 +1007,7 @@ def build_app():
 
         # Collect arguments for initialization helper
         init_inputs = [
-            state_lang, persona_count, agenda_input, api_key_input, base_url_input, model_input
+            state_lang, persona_count, agenda_input
         ] + [cfg["name"] for cfg in persona_configs] + [cfg["is_human"] for cfg in persona_configs] + [cfg["prompt"] for cfg in persona_configs]
 
         btn_fetch_models.click(
@@ -1078,7 +1062,7 @@ def build_app():
         def handle_human_response(lang, human_text, history, current_idx, personas):
             """Processes human response text input and advances the turn."""
             if not human_text.strip():
-                status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
+                status_msg, show_human_input = update_ui_state(lang, current_idx, personas)
                 return (
                     status_msg, history, current_idx, render_chat_html(history), 
                     nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=True), "",
@@ -1090,7 +1074,7 @@ def build_app():
             updated_history = history + [new_item]
             
             next_idx = (current_idx + 1) % len(personas)
-            status_msg, show_human_input, _ = update_ui_state(lang, next_idx, personas)
+            status_msg, show_human_input = update_ui_state(lang, next_idx, personas)
             
             return (
                 status_msg,
@@ -1163,7 +1147,7 @@ def build_app():
             # Revert to the previous speaker
             current_idx = (current_idx - 1) % len(personas)
             
-            status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
+            status_msg, show_human_input = update_ui_state(lang, current_idx, personas)
             has_more_to_undo = len(history) > 1
             
             return (
