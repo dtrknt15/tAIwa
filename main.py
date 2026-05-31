@@ -5,6 +5,8 @@ import time
 import os
 import random
 import tempfile
+import re
+import html
 
 # --- Detect HF Spaces Environment or local env keys ---
 IS_HF_SPACE = (os.getenv("SYSTEM") == "spaces") or (os.getenv("SPACE_ID") is not None)
@@ -303,6 +305,7 @@ I18N_DATA = {
         "btn_start": "🚀 Start",
         "btn_next": "➡️ Next Turn",
         "btn_reset": "🔄 Reset",
+        "btn_undo": "↩️ Undo",
         "human_resp_label": "Your Response",
         "human_resp_placeholder": "Enter your response...",
         "btn_send": "Send",
@@ -343,6 +346,7 @@ I18N_DATA = {
         "btn_start": "🚀 開始する",
         "btn_next": "➡️ 次のターン",
         "btn_reset": "🔄 リセット",
+        "btn_undo": "↩️ 1つ戻す",
         "human_resp_label": "あなたの返答",
         "human_resp_placeholder": "返答を入力してください...",
         "btn_send": "送信",
@@ -445,6 +449,11 @@ PRESETS = {
             {"name": "Socrates", "prompt": "You are Socrates. You use the Socratic method, asking questions to challenge assumptions and uncover deeper truths. Be polite but inquisitive.", "is_human": False},
             {"name": "Nietzsche", "prompt": "You are Friedrich Nietzsche. You value individual will, overcoming struggle, and questioning conventional morals. Speak passionately and intensely.", "is_human": False},
             {"name": "Modern Citizen", "prompt": "You are a reasonable modern citizen. You focus on everyday practicality, human happiness, and balance in modern society.", "is_human": False}
+        ],
+        "Casual Chat": [
+            {"name": "Alex", "prompt": "You are a friendly, casual, and easygoing friend. You like joking around and talking about hobbies, daily life, and popular topics. Speak in a warm, relaxed, and informal tone.", "is_human": False},
+            {"name": "Jordan", "prompt": "You are a curious, optimistic, and enthusiastic friend. You love sharing fun facts, interesting stories, and asking engaging follow-up questions. Keep the conversation lively and cheerful.", "is_human": False},
+            {"name": "Taylor", "prompt": "You are a calm, supportive, and thoughtful friend. You offer good listening, lighthearted humor, and sensible, comforting advice. Speak in a cozy and informal style.", "is_human": False}
         ]
     },
     "ja": {
@@ -462,6 +471,11 @@ PRESETS = {
             {"name": "ソクラテス", "prompt": "古代ギリシャの哲学者ソクラテスです。問いかけること（産婆術）で相手の前提を揺さぶり、真理を追求します。礼儀正しくも執拗に質問します。", "is_human": False},
             {"name": "ニーチェ", "prompt": "哲学者ニーチェです。ルサンチマンを排し、自らの「力への意志」によって運命を愛することを説きます。情熱的で鋭い言葉遣いをします。", "is_human": False},
             {"name": "現代市民", "prompt": "ごく一般的な常識を持つ現代市民です。日常生活の利便性、幸福、調和の観点から、極端な思想に対してバランスの取れた意見を述べます。", "is_human": False}
+        ],
+        "雑談ルーム": [
+            {"name": "アキ", "prompt": "明るくてフランクな友人です。趣味や日常の出来事、最近流行っていることについてカジュアルに話すのが好きです。親しみやすいタメ口（〜だよ、〜だね）でリラックスして話します。", "is_human": False},
+            {"name": "リン", "prompt": "好奇心旺盛でポジティブな友人です。相槌を打ちながら「そういえば〜」と面白い話や楽しい質問を投げかけるのが得意です。元気でフレンドリーなタメ口で話します。", "is_human": False},
+            {"name": "ハル", "prompt": "穏やかで聞き上手な優しい友人です。他人の話を温かく受け止め、クスッと笑えるユーモアを交えたり、のんびりしたアドバイスをくれたりします。落ち着いたタメ口で話します。", "is_human": False}
         ]
     }
 }
@@ -584,6 +598,51 @@ def export_chat_log(history, agenda, lang):
         f.write(content)
         
     return file_path
+
+def simple_markdown_to_html(text):
+    if not text:
+        return ""
+    # 1. Escape HTML
+    text = html.escape(text)
+    
+    # 2. Extract code blocks and replace with placeholders to avoid formatting inside them
+    code_blocks = []
+    def save_code_block(match):
+        code_blocks.append(match.group(1))
+        return f"__CODE_BLOCK_PLACEHOLDER_{len(code_blocks)-1}__"
+    
+    # Match ```lang ... ``` or just ``` ... ```
+    text = re.sub(r'```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```', save_code_block, text)
+    text = re.sub(r'```([\s\S]*?)```', save_code_block, text)
+    
+    # 3. Apply inline styling (bold, italic, inline code)
+    # Inline code `code`
+    inline_codes = []
+    def save_inline_code(match):
+        inline_codes.append(match.group(1))
+        return f"__INLINE_CODE_PLACEHOLDER_{len(inline_codes)-1}__"
+    text = re.sub(r'`([^`\n]+)`', save_inline_code, text)
+    
+    # Bold **bold**
+    text = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', text)
+    # Italic *italic*
+    text = re.sub(r'\*([^*]+)\*', r'<em>\1</em>', text)
+    
+    # Convert newlines to <br> for spacing
+    text = text.replace("\n", "<br>")
+    
+    # 4. Restore placeholders with styled HTML
+    for idx, code in enumerate(inline_codes):
+        placeholder = f"__INLINE_CODE_PLACEHOLDER_{idx}__"
+        styled = f'<code style="background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">{code}</code>'
+        text = text.replace(placeholder, styled)
+        
+    for idx, block in enumerate(code_blocks):
+        placeholder = f"__CODE_BLOCK_PLACEHOLDER_{idx}__"
+        styled = f'<pre style="background: rgba(0,0,0,0.05); padding: 12px; border-radius: 8px; overflow-x: auto; font-family: monospace; font-size: 0.9em; margin: 8px 0; line-height: 1.4;"><code>{block}</code></pre>'
+        text = text.replace(placeholder, styled)
+        
+    return text
 
 def format_local_base_url(base_url):
     """Ensures local base URLs (like localhost:1234) have the /v1 suffix appended automatically."""
@@ -785,6 +844,7 @@ def build_app():
                     btn_initialize = nn_gradio.Button(I18N_DATA["en"]["btn_start"], elem_classes=["start-btn"], scale=2)
                     btn_step = nn_gradio.Button(I18N_DATA["en"]["btn_next"], variant="secondary", interactive=False, scale=2)
                     autoplay_check = nn_gradio.Checkbox(label=I18N_DATA["en"]["autoplay_label"], value=False, scale=1)
+                    btn_undo = nn_gradio.Button(I18N_DATA["en"]["btn_undo"], variant="secondary", interactive=False, scale=1)
                     btn_reset = nn_gradio.Button(I18N_DATA["en"]["btn_reset"], variant="stop", scale=1)
                 
                 status_box = nn_gradio.Markdown(LOCALIZED_STRINGS["en"]["setup_instruction"])
@@ -822,7 +882,7 @@ def build_app():
             
             html_content = ["<div style='display: flex; flex-direction: column; gap: 8px;'>"]
             for speaker, text, color_idx in history_list:
-                clean_text = text.replace("\n", "<br>")
+                clean_text = simple_markdown_to_html(text)
                 html_content.append(f"""
                 <div class="chat-bubble bubble-persona-{color_idx}">
                     <strong>{speaker}</strong>:
@@ -971,7 +1031,7 @@ def build_app():
             inputs=init_inputs,
             outputs=[
                 status_box, state_history, state_current_idx, state_agenda, 
-                state_participants, chat_display, btn_step, btn_step_bottom, human_input_row, btn_initialize
+                state_participants, chat_display, btn_step, btn_step_bottom, human_input_row, btn_initialize, btn_undo
             ]
         ).then(
             fn=proceed_next_turn,
@@ -981,7 +1041,7 @@ def build_app():
             ],
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
-                btn_step, btn_step_bottom, human_input_row
+                btn_step, btn_step_bottom, human_input_row, btn_undo, autoplay_check
             ]
         )
 
@@ -993,7 +1053,7 @@ def build_app():
             ],
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
-                btn_step, btn_step_bottom, human_input_row
+                btn_step, btn_step_bottom, human_input_row, btn_undo, autoplay_check
             ]
         )
 
@@ -1005,7 +1065,7 @@ def build_app():
             ],
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
-                btn_step, btn_step_bottom, human_input_row
+                btn_step, btn_step_bottom, human_input_row, btn_undo, autoplay_check
             ]
         )
 
@@ -1015,7 +1075,8 @@ def build_app():
                 status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
                 return (
                     status_msg, history, current_idx, render_chat_html(history), 
-                    nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=True), ""
+                    nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=True), "",
+                    nn_gradio.Button(interactive=len(history) > 1)
                 )
             
             current_persona = personas[current_idx]
@@ -1033,7 +1094,8 @@ def build_app():
                 nn_gradio.Button(interactive=not show_human_input), # btn_step
                 nn_gradio.Button(interactive=not show_human_input), # btn_step_bottom
                 nn_gradio.Row(visible=show_human_input),
-                "" # Clear human text field
+                "", # Clear human text field
+                nn_gradio.Button(interactive=True) # btn_undo
             )
 
         btn_submit_human.click(
@@ -1041,7 +1103,7 @@ def build_app():
             inputs=[state_lang, human_textbox, state_history, state_current_idx, state_participants],
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
-                btn_step, btn_step_bottom, human_input_row, human_textbox
+                btn_step, btn_step_bottom, human_input_row, human_textbox, btn_undo
             ]
         ).then(
             fn=proceed_next_turn,
@@ -1051,7 +1113,7 @@ def build_app():
             ],
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
-                btn_step, btn_step_bottom, human_input_row
+                btn_step, btn_step_bottom, human_input_row, btn_undo, autoplay_check
             ]
         )
         
@@ -1060,7 +1122,7 @@ def build_app():
             inputs=[state_lang, human_textbox, state_history, state_current_idx, state_participants],
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
-                btn_step, btn_step_bottom, human_input_row, human_textbox
+                btn_step, btn_step_bottom, human_input_row, human_textbox, btn_undo
             ]
         ).then(
             fn=proceed_next_turn,
@@ -1070,7 +1132,52 @@ def build_app():
             ],
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
-                btn_step, btn_step_bottom, human_input_row
+                btn_step, btn_step_bottom, human_input_row, btn_undo, autoplay_check
+            ]
+        )
+
+        def undo_last_turn(lang, history, current_idx, personas):
+            """Removes the last message and goes back one turn."""
+            if len(history) <= 1:
+                return (
+                    LOCALIZED_STRINGS[lang]["turn_start"],
+                    history,
+                    current_idx,
+                    render_chat_html(history),
+                    nn_gradio.Button(interactive=False), # btn_step
+                    nn_gradio.Button(interactive=False), # btn_step_bottom
+                    nn_gradio.Button(interactive=False), # btn_undo
+                    nn_gradio.Row(visible=False),
+                    False # autoplay_check
+                )
+            
+            # Remove the last message from history
+            history = history[:-1]
+            
+            # Revert to the previous speaker
+            current_idx = (current_idx - 1) % len(personas)
+            
+            status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
+            has_more_to_undo = len(history) > 1
+            
+            return (
+                status_msg,
+                history,
+                current_idx,
+                render_chat_html(history),
+                nn_gradio.Button(interactive=not show_human_input), # btn_step
+                nn_gradio.Button(interactive=not show_human_input), # btn_step_bottom
+                nn_gradio.Button(interactive=has_more_to_undo),      # btn_undo
+                nn_gradio.Row(visible=show_human_input),
+                False # Turn off autoplay when undo is clicked
+            )
+
+        btn_undo.click(
+            fn=undo_last_turn,
+            inputs=[state_lang, state_history, state_current_idx, state_participants],
+            outputs=[
+                status_box, state_history, state_current_idx, chat_display,
+                btn_step, btn_step_bottom, btn_undo, human_input_row, autoplay_check
             ]
         )
 
@@ -1087,7 +1194,8 @@ def build_app():
                 nn_gradio.Button(interactive=False), # btn_step_bottom
                 nn_gradio.Row(visible=False),
                 nn_gradio.Button(interactive=True), # btn_initialize
-                nn_gradio.File(value=None, visible=False) # download_file
+                nn_gradio.File(value=None, visible=False), # download_file
+                nn_gradio.Button(interactive=False) # btn_undo
             )
 
         btn_reset.click(
@@ -1096,7 +1204,7 @@ def build_app():
             outputs=[
                 status_box, state_history, state_current_idx, state_agenda, 
                 state_participants, chat_display, btn_step, btn_step_bottom, 
-                human_input_row, btn_initialize, download_file
+                human_input_row, btn_initialize, download_file, btn_undo
             ]
         )
 
@@ -1167,6 +1275,7 @@ def build_app():
                 nn_gradio.Button(value=I18N_DATA[lang]["btn_next"]),
                 nn_gradio.Button(value=I18N_DATA[lang]["btn_next"]),
                 nn_gradio.Checkbox(label=I18N_DATA[lang]["autoplay_label"], interactive=True),
+                nn_gradio.Button(value=I18N_DATA[lang]["btn_undo"]),
                 nn_gradio.Button(value=I18N_DATA[lang]["btn_reset"], interactive=True),
                 nn_gradio.Markdown(value=LOCALIZED_STRINGS[lang]["setup_instruction"]),
                 nn_gradio.HTML(value=LOCALIZED_STRINGS[lang]["empty_chat_log"]),
@@ -1188,7 +1297,7 @@ def build_app():
         lang_outputs = [
             state_lang, app_title_md, app_desc_md, api_config_md, api_key_input, base_url_input, model_input,
             persona_config_md, preset_dropdown, persona_count, chatroom_panel_md, agenda_input,
-            btn_initialize, btn_step, btn_step_bottom, autoplay_check, btn_reset, status_box, chat_display,
+            btn_initialize, btn_step, btn_step_bottom, autoplay_check, btn_undo, btn_reset, status_box, chat_display,
             btn_copy, btn_export, download_file, human_textbox, btn_submit_human
         ]
         for cfg in persona_configs:
