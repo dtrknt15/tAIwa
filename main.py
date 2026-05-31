@@ -3,6 +3,8 @@ import openai
 import json
 import time
 import os
+import random
+import tempfile
 
 # --- Detect HF Spaces Environment or local env keys ---
 IS_HF_SPACE = (os.getenv("SYSTEM") == "spaces") or (os.getenv("SPACE_ID") is not None)
@@ -285,7 +287,13 @@ i18n = nn_gradio.I18n(
         "btn_reset": "🔄 Reset",
         "human_resp_label": "Your Response",
         "human_resp_placeholder": "Enter your response...",
-        "btn_send": "Send"
+        "btn_send": "Send",
+        "autoplay_label": "Auto-Play",
+        "preset_label": "Preset Template",
+        "preset_custom": "Custom (Manual Setup)",
+        "btn_copy": "📋 Copy Log",
+        "btn_save": "💾 Save Log",
+        "file_label": "Download Log"
     },
     ja={
         "app_title": "# 🌐 tAIwa - マルチペルソナ チャットルーム",
@@ -317,7 +325,13 @@ i18n = nn_gradio.I18n(
         "btn_reset": "🔄 リセット",
         "human_resp_label": "あなたの返答",
         "human_resp_placeholder": "返答を入力してください...",
-        "btn_send": "送信"
+        "btn_send": "送信",
+        "autoplay_label": "自動進行",
+        "preset_label": "プリセットテンプレート",
+        "preset_custom": "カスタム（手動設定）",
+        "btn_copy": "📋 ログをコピー",
+        "btn_save": "💾 ログを保存",
+        "file_label": "ログのダウンロード"
     }
 )
 
@@ -386,6 +400,166 @@ LOCALIZED_STRINGS = {
         )
     }
 }
+
+PRESETS = {
+    "en": {
+        "Technical Debate": [
+            {"name": "Architect", "prompt": "You are a software architect who values scalability, clean code, and robust system design. You are pragmatic but strict about best practices.", "is_human": False},
+            {"name": "Developer", "prompt": "You are a hands-on software engineer. You care about development speed, developer experience, and simple, maintainable solutions.", "is_human": False},
+            {"name": "Security Expert", "prompt": "You are a cybersecurity expert. You focus on threat models, data privacy, vulnerabilities, and risk mitigation.", "is_human": False}
+        ],
+        "Creative Brainstorming": [
+            {"name": "Innovator", "prompt": "You are a creative visionary. You suggest bold, out-of-the-box, and futuristic ideas without worrying about initial constraints.", "is_human": False},
+            {"name": "Pragmatist", "prompt": "You are a practical project manager. You focus on execution, budget, timeline, and how to actually build ideas.", "is_human": False},
+            {"name": "Marketer", "prompt": "You are a growth marketer. You focus on user acquisition, viral hooks, messaging, and how to position the product in the market.", "is_human": False}
+        ],
+        "Philosophical Cafe": [
+            {"name": "Socrates", "prompt": "You are Socrates. You use the Socratic method, asking questions to challenge assumptions and uncover deeper truths. Be polite but inquisitive.", "is_human": False},
+            {"name": "Nietzsche", "prompt": "You are Friedrich Nietzsche. You value individual will, overcoming struggle, and questioning conventional morals. Speak passionately and intensely.", "is_human": False},
+            {"name": "Modern Citizen", "prompt": "You are a reasonable modern citizen. You focus on everyday practicality, human happiness, and balance in modern society.", "is_human": False}
+        ]
+    },
+    "ja": {
+        "技術ディスカッション": [
+            {"name": "アーキテクト", "prompt": "システム開発の全体設計を担当するアーキテクトです。スケーラビリティ、堅牢性、クリーンコードを重視し、妥協のない最適な設計を提案します。", "is_human": False},
+            {"name": "開発者", "prompt": "現場でコードを書くエンジニアです。開発速度、生産性、シンプルな実装、および保守性の高さを重視します。", "is_human": False},
+            {"name": "セキュリティ担当", "prompt": "セキュリティ監査の専門家です。脆弱性、データ保護、暗号化、リスク管理の観点から厳しい意見を述べます。", "is_human": False}
+        ],
+        "アイデア会議": [
+            {"name": "革新者", "prompt": "枠にとらわれない大胆で未来的なアイデアを提案するイノベーターです。実現可能性よりも面白さや新しさを重視します。", "is_human": False},
+            {"name": "現実主義者", "prompt": "現実的なプロジェクトマネージャーです。予算、納期、人員、技術的制約の観点から、どうやって形にするかを考えます。", "is_human": False},
+            {"name": "マーケター", "prompt": "ユーザー獲得と市場への訴求を考えるマーケターです。バイラル性、ユーザーメリット、ポジショニングを重視します。", "is_human": False}
+        ],
+        "哲学カフェ": [
+            {"name": "ソクラテス", "prompt": "古代ギリシャの哲学者ソクラテスです。問いかけること（産婆術）で相手の前提を揺さぶり、真理を追求します。礼儀正しくも執拗に質問します。", "is_human": False},
+            {"name": "ニーチェ", "prompt": "哲学者ニーチェです。ルサンチマンを排し、自らの「力への意志」によって運命を愛することを説きます。情熱的で鋭い言葉遣いをします。", "is_human": False},
+            {"name": "現代市民", "prompt": "ごく一般的な常識を持つ現代市民です。日常生活の利便性、幸福、調和の観点から、極端な思想に対してバランスの取れた意見を述べます。", "is_human": False}
+        ]
+    }
+}
+
+RANDOM_AGENDAS = {
+    "en": [
+        "Is tabs or spaces superior for code indentation?",
+        "Will Artificial General Intelligence (AGI) be achieved by 2030?",
+        "Should humanity prioritize colonizing Mars or solving Earth's climate crisis?",
+        "Is a hotdog technically a sandwich?",
+        "What is the most important programming language to learn today, and why?",
+        "Should remote work remain the default standard for tech companies?",
+        "Does pineapple belong on pizza?",
+        "Is time travel theoretically possible, and what are the ethical implications?",
+        "Should code comments be treated as a code smell (i.e., code should be self-documenting)?"
+    ],
+    "ja": [
+        "コードのインデントはタブ派かスペース派か？",
+        "2030年までに汎用人工知能（AGI）は実現するか？",
+        "人類は火星移住と地球の気候変動対策のどちらを優先すべきか？",
+        "ホットドッグはサンドイッチに分類されるべきか？",
+        "現代において最も学ぶ価値のあるプログラミング言語とその理由は？",
+        "IT企業においてリモートワークは恒久的な標準スタイルであるべきか？",
+        "酢豚にパイナップルを入れるのは許せるか？",
+        "タイムトラベルは理論的に可能か？またその倫理的影響は？",
+        "コードのコメントは不要（コード自身が説明的であるべき）という意見についてどう思うか？"
+    ]
+}
+
+def get_preset_choices(lang):
+    if lang == "ja":
+        return ["カスタム（手動設定）"] + list(PRESETS["ja"].keys())
+    return ["Custom (Manual Setup)"] + list(PRESETS["en"].keys())
+
+def apply_preset(preset_name, request: nn_gradio.Request):
+    lang = get_language(request)
+    is_custom = preset_name in ["Custom (Manual Setup)", "カスタム（手動設定）", None, ""]
+    if is_custom:
+        return [nn_gradio.update()] * 13
+    
+    preset_data = None
+    if lang == "ja" and preset_name in PRESETS["ja"]:
+        preset_data = PRESETS["ja"][preset_name]
+    elif preset_name in PRESETS["en"]:
+        preset_data = PRESETS["en"][preset_name]
+    else:
+        for l in PRESETS:
+            if preset_name in PRESETS[l]:
+                preset_data = PRESETS[l][preset_name]
+                break
+                
+    if not preset_data:
+        return [nn_gradio.update()] * 13
+        
+    num_personas = len(preset_data)
+    outputs = [nn_gradio.Slider(value=num_personas)]
+    for i in range(4):
+        if i < num_personas:
+            p = preset_data[i]
+            outputs.append(nn_gradio.Textbox(value=p["name"]))
+            outputs.append(nn_gradio.Checkbox(value=p.get("is_human", False)))
+            outputs.append(nn_gradio.Textbox(value=p["prompt"]))
+        else:
+            outputs.append(nn_gradio.update())
+            outputs.append(nn_gradio.update())
+            outputs.append(nn_gradio.update())
+            
+    return outputs
+
+def set_custom_preset(request: nn_gradio.Request):
+    lang = get_language(request)
+    custom_val = "カスタム（手動設定）" if lang == "ja" else "Custom (Manual Setup)"
+    return nn_gradio.Dropdown(value=custom_val)
+
+def get_random_agenda(request: nn_gradio.Request):
+    lang = get_language(request)
+    agendas = RANDOM_AGENDAS.get(lang, RANDOM_AGENDAS["en"])
+    return random.choice(agendas)
+
+def generate_markdown_log(history, agenda, lang):
+    if not history:
+        return ""
+    
+    title = "tAIwa Chat Log" if lang == "en" else "tAIwa 対話ログ"
+    agenda_label = "Agenda/Topic" if lang == "en" else "アジェンダ/トピック"
+    
+    lines = []
+    lines.append(f"# 🌐 {title}")
+    lines.append(f"**{agenda_label}**: {agenda}\n")
+    lines.append("--- \n")
+    
+    for speaker, text, _ in history:
+        if speaker in ["System", "システム"]:
+            lines.append(f"*{text}*\n")
+        else:
+            lines.append(f"### **{speaker}**")
+            lines.append(f"{text}\n")
+            
+    return "\n".join(lines)
+
+def copy_log_python(history, agenda, request: nn_gradio.Request):
+    lang = get_language(request)
+    if not history:
+        msg = "Chat log is empty. / チャットログが空です。"
+        nn_gradio.Warning(msg)
+        return ""
+    
+    markdown_text = generate_markdown_log(history, agenda, lang)
+    msg = "Copied chat log to clipboard! / ログをクリップボードにコピーしました！"
+    nn_gradio.Info(msg)
+    return markdown_text
+
+def export_chat_log(history, agenda, request: nn_gradio.Request):
+    lang = get_language(request)
+    if not history:
+        nn_gradio.Warning("Chat log is empty. / チャットログが空です。")
+        return None
+        
+    content = generate_markdown_log(history, agenda, lang)
+    
+    temp_dir = tempfile.gettempdir()
+    file_path = os.path.join(temp_dir, "taiwa_chat_log.md")
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(content)
+        
+    return file_path
 
 def format_local_base_url(base_url):
     """Ensures local base URLs (like localhost:1234) have the /v1 suffix appended automatically."""
@@ -517,6 +691,12 @@ def build_app():
                     btn_fetch_models = nn_gradio.Button("🔄", scale=0, min_width=50, elem_classes=["refresh-btn"])
                 
                 nn_gradio.Markdown(i18n("persona_config"))
+                preset_dropdown = nn_gradio.Dropdown(
+                    label=i18n("preset_label"),
+                    choices=["Custom (Manual Setup)"],
+                    value="Custom (Manual Setup)",
+                    interactive=True
+                )
                 persona_count = nn_gradio.Slider(minimum=2, maximum=4, step=1, value=3, label=i18n("num_personas"))
                 
                 # Persona Configuration Blocks (Max 4)
@@ -551,16 +731,20 @@ def build_app():
             # --- RIGHT COLUMN: CHATROOM ---
             with nn_gradio.Column(scale=6, elem_classes=["glass-panel"]):
                 nn_gradio.Markdown(i18n("chatroom_panel"))
-                agenda_input = nn_gradio.Textbox(
-                    label=i18n("agenda_label"), 
-                    placeholder=i18n("agenda_placeholder"), 
-                    value=i18n("agenda_default")
-                )
+                with nn_gradio.Row():
+                    agenda_input = nn_gradio.Textbox(
+                        label=i18n("agenda_label"), 
+                        placeholder=i18n("agenda_placeholder"), 
+                        value=i18n("agenda_default"),
+                        scale=8
+                    )
+                    btn_random_agenda = nn_gradio.Button("🎲", scale=0, min_width=50, elem_classes=["refresh-btn"])
                 
                 with nn_gradio.Row():
-                    btn_initialize = nn_gradio.Button(i18n("btn_start"), elem_classes=["start-btn"])
-                    btn_step = nn_gradio.Button(i18n("btn_next"), variant="secondary", interactive=False)
-                    btn_reset = nn_gradio.Button(i18n("btn_reset"), variant="stop")
+                    btn_initialize = nn_gradio.Button(i18n("btn_start"), elem_classes=["start-btn"], scale=2)
+                    btn_step = nn_gradio.Button(i18n("btn_next"), variant="secondary", interactive=False, scale=2)
+                    autoplay_check = nn_gradio.Checkbox(label=i18n("autoplay_label"), value=False, scale=1)
+                    btn_reset = nn_gradio.Button(i18n("btn_reset"), variant="stop", scale=1)
                 
                 status_box = nn_gradio.Markdown(i18n("setup_instruction"))
                 
@@ -571,7 +755,13 @@ def build_app():
                 )
                 
                 with nn_gradio.Row():
-                    btn_step_bottom = nn_gradio.Button(i18n("btn_next"), variant="secondary", interactive=False)
+                    btn_step_bottom = nn_gradio.Button(i18n("btn_next"), variant="secondary", interactive=False, scale=2)
+                    btn_copy = nn_gradio.Button(i18n("btn_copy"), scale=1)
+                    btn_export = nn_gradio.Button(i18n("btn_save"), scale=1)
+                
+                # Hidden components for copying / downloading
+                hidden_markdown = nn_gradio.Textbox(visible=False)
+                download_file = nn_gradio.File(label=i18n("file_label"), visible=False)
                 
                 # Human Response input row (initially hidden/disabled)
                 with nn_gradio.Row(visible=False) as human_input_row:
@@ -628,41 +818,6 @@ def build_app():
             # Reset pointer to turn 0
             current_idx = 0
             
-            # If the first persona is AI, execute their response immediately!
-            first_persona = personas[0]
-            if not first_persona["is_human"]:
-                history_text = format_history_for_prompt([]) # Empty dialogue history
-                participant_names = ", ".join([p["name"] for p in personas])
-                
-                system_prompt = LOCALIZED_STRINGS[lang]["roleplay_system_prompt"].format(
-                    persona_prompt=first_persona['prompt'],
-                    persona_name=first_persona['name'],
-                    agenda=agenda,
-                    participant_names=participant_names
-                )
-                
-                full_prompt = LOCALIZED_STRINGS[lang]["roleplay_full_prompt"].format(
-                    persona_name=first_persona['name'],
-                    history_text=history_text
-                )
-                
-                # Generate first response
-                response_text = generate_ai_response(api_key, base_url, model, system_prompt, full_prompt)
-                
-                # Localize backend system or API errors
-                if "⚠️ System error" in response_text:
-                    response_text = LOCALIZED_STRINGS[lang]["api_key_missing"]
-                elif "⚠️ API Error" in response_text:
-                    err_msg = response_text.replace("⚠️ API Error: ", "")
-                    response_text = LOCALIZED_STRINGS[lang]["api_error"].format(error=err_msg)
-
-                # Append message to log
-                new_item = (first_persona["name"], response_text, first_persona["color_idx"])
-                initial_history.append(new_item)
-                
-                # Move to next turn
-                current_idx = 1
-            
             # Format UI for the next turn
             status_msg, show_human_input, human_name = update_ui_state(lang, current_idx, personas)
             
@@ -674,8 +829,8 @@ def build_app():
                 agenda,
                 personas,
                 render_chat_html(initial_history),
-                nn_gradio.Button(interactive=not show_human_input), # btn_step
-                nn_gradio.Button(interactive=not show_human_input), # btn_step_bottom
+                nn_gradio.Button(interactive=False), # btn_step
+                nn_gradio.Button(interactive=False), # btn_step_bottom
                 nn_gradio.Row(visible=show_human_input),
                 nn_gradio.Button(interactive=False) # Disable setup button after starting
             )
@@ -698,75 +853,108 @@ def build_app():
                 status_box, state_history, state_current_idx, state_agenda, 
                 state_participants, chat_display, btn_step, btn_step_bottom, human_input_row, btn_initialize
             ]
+        ).then(
+            fn=proceed_next_turn,
+            inputs=[
+                state_history, state_current_idx, state_agenda, state_participants,
+                api_key_input, base_url_input, model_input, autoplay_check
+            ],
+            outputs=[
+                status_box, state_history, state_current_idx, chat_display,
+                btn_step, btn_step_bottom, human_input_row
+            ]
         )
 
-        def proceed_next_turn(request: nn_gradio.Request, history, current_idx, agenda, personas, api_key, base_url, model):
+        def proceed_next_turn(request: nn_gradio.Request, history, current_idx, agenda, personas, api_key, base_url, model, autoplay):
             """Executes the AI turn or proceeds to wait for human turn."""
             lang = get_language(request)
             if not personas:
-                return LOCALIZED_STRINGS[lang]["turn_start"], history, current_idx, "", nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=False)
+                yield (
+                    LOCALIZED_STRINGS[lang]["turn_start"], history, current_idx, "", 
+                    nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=False)
+                )
+                return
             
-            current_persona = personas[current_idx]
-            
-            # Security check: if current is human, we should not execute AI generation
-            if current_persona["is_human"]:
-                # Should wait for human input, do nothing here
+            first_run = True
+            while True:
+                current_persona = personas[current_idx]
+                
+                # Security check: if current is human, we should not execute AI generation
+                if current_persona["is_human"]:
+                    status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
+                    yield (
+                        status_msg, history, current_idx, render_chat_html(history), 
+                        nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=True)
+                    )
+                    break
+                
+                # If it's not the first run and autoplay is False, we stop at the next turn
+                if not first_run and not autoplay:
+                    status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
+                    yield (
+                        status_msg, history, current_idx, render_chat_html(history), 
+                        nn_gradio.Button(interactive=not show_human_input), nn_gradio.Button(interactive=not show_human_input), nn_gradio.Row(visible=show_human_input)
+                    )
+                    break
+                
+                # Build prompts - limit context history to last 12 messages to keep token usage low
+                recent_history = [(h[0], h[1]) for h in history if h[0] not in ["System", "システム"]]
+                recent_history = recent_history[-12:]
+                history_text = format_history_for_prompt(recent_history)
+                participant_names = ", ".join([p["name"] for p in personas])
+                
+                system_prompt = LOCALIZED_STRINGS[lang]["roleplay_system_prompt"].format(
+                    persona_prompt=current_persona['prompt'],
+                    persona_name=current_persona['name'],
+                    agenda=agenda,
+                    participant_names=participant_names
+                )
+                
+                full_prompt = LOCALIZED_STRINGS[lang]["roleplay_full_prompt"].format(
+                    persona_name=current_persona['name'],
+                    history_text=history_text
+                )
+                
+                # Generate response
+                response_text = generate_ai_response(api_key, base_url, model, system_prompt, full_prompt)
+                
+                # Localize backend system or API errors
+                if "⚠️ System error" in response_text:
+                    response_text = LOCALIZED_STRINGS[lang]["api_key_missing"]
+                elif "⚠️ API Error" in response_text:
+                    err_msg = response_text.replace("⚠️ API Error: ", "")
+                    response_text = LOCALIZED_STRINGS[lang]["api_error"].format(error=err_msg)
+    
+                # Append message to log
+                new_item = (current_persona["name"], response_text, current_persona["color_idx"])
+                history = history + [new_item]
+                
+                # Move to next index
+                current_idx = (current_idx + 1) % len(personas)
+                first_run = False
+                
+                # Determine state for the next turn
                 status_msg, show_human_input, _ = update_ui_state(lang, current_idx, personas)
-                return status_msg, history, current_idx, render_chat_html(history), nn_gradio.Button(interactive=False), nn_gradio.Button(interactive=False), nn_gradio.Row(visible=True)
-            
-            # Build prompts - limit context history to last 12 messages to keep token usage low
-            recent_history = [(h[0], h[1]) for h in history if h[0] not in ["System", "システム"]]
-            recent_history = recent_history[-12:]
-            history_text = format_history_for_prompt(recent_history)
-            participant_names = ", ".join([p["name"] for p in personas])
-            
-            system_prompt = LOCALIZED_STRINGS[lang]["roleplay_system_prompt"].format(
-                persona_prompt=current_persona['prompt'],
-                persona_name=current_persona['name'],
-                agenda=agenda,
-                participant_names=participant_names
-            )
-            
-            full_prompt = LOCALIZED_STRINGS[lang]["roleplay_full_prompt"].format(
-                persona_name=current_persona['name'],
-                history_text=history_text
-            )
-            
-            # Generate response
-            response_text = generate_ai_response(api_key, base_url, model, system_prompt, full_prompt)
-            
-            # Localize backend system or API errors
-            if "⚠️ System error" in response_text:
-                response_text = LOCALIZED_STRINGS[lang]["api_key_missing"]
-            elif "⚠️ API Error" in response_text:
-                err_msg = response_text.replace("⚠️ API Error: ", "")
-                response_text = LOCALIZED_STRINGS[lang]["api_error"].format(error=err_msg)
-
-            # Append message to log
-            new_item = (current_persona["name"], response_text, current_persona["color_idx"])
-            updated_history = history + [new_item]
-            
-            # Move to next index
-            next_idx = (current_idx + 1) % len(personas)
-            
-            # Determine state for the next turn
-            status_msg, show_human_input, _ = update_ui_state(lang, next_idx, personas)
-            
-            return (
-                status_msg,
-                updated_history,
-                next_idx,
-                render_chat_html(updated_history),
-                nn_gradio.Button(interactive=not show_human_input), # btn_step
-                nn_gradio.Button(interactive=not show_human_input), # btn_step_bottom
-                nn_gradio.Row(visible=show_human_input)
-            )
+                
+                # Yield current state (disable step buttons during autoplay to prevent duplicate clicks)
+                yield (
+                    status_msg,
+                    history,
+                    current_idx,
+                    render_chat_html(history),
+                    nn_gradio.Button(interactive=not show_human_input and not autoplay),
+                    nn_gradio.Button(interactive=not show_human_input and not autoplay),
+                    nn_gradio.Row(visible=show_human_input)
+                )
+                
+                if autoplay:
+                    time.sleep(1.5)
 
         btn_step.click(
             fn=proceed_next_turn,
             inputs=[
                 state_history, state_current_idx, state_agenda, state_participants,
-                api_key_input, base_url_input, model_input
+                api_key_input, base_url_input, model_input, autoplay_check
             ],
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
@@ -778,7 +966,7 @@ def build_app():
             fn=proceed_next_turn,
             inputs=[
                 state_history, state_current_idx, state_agenda, state_participants,
-                api_key_input, base_url_input, model_input
+                api_key_input, base_url_input, model_input, autoplay_check
             ],
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
@@ -827,6 +1015,16 @@ def build_app():
                 status_box, state_history, state_current_idx, chat_display,
                 btn_step, btn_step_bottom, human_input_row, human_textbox
             ]
+        ).then(
+            fn=proceed_next_turn,
+            inputs=[
+                state_history, state_current_idx, state_agenda, state_participants,
+                api_key_input, base_url_input, model_input, autoplay_check
+            ],
+            outputs=[
+                status_box, state_history, state_current_idx, chat_display,
+                btn_step, btn_step_bottom, human_input_row
+            ]
         )
         
         # Also support pressing Enter in the human textbox to submit
@@ -836,6 +1034,16 @@ def build_app():
             outputs=[
                 status_box, state_history, state_current_idx, chat_display,
                 btn_step, btn_step_bottom, human_input_row, human_textbox
+            ]
+        ).then(
+            fn=proceed_next_turn,
+            inputs=[
+                state_history, state_current_idx, state_agenda, state_participants,
+                api_key_input, base_url_input, model_input, autoplay_check
+            ],
+            outputs=[
+                status_box, state_history, state_current_idx, chat_display,
+                btn_step, btn_step_bottom, human_input_row
             ]
         )
 
@@ -852,7 +1060,8 @@ def build_app():
                 nn_gradio.Button(interactive=False), # btn_step
                 nn_gradio.Button(interactive=False), # btn_step_bottom
                 nn_gradio.Row(visible=False),
-                nn_gradio.Button(interactive=True)
+                nn_gradio.Button(interactive=True), # btn_initialize
+                nn_gradio.File(value=None, visible=False) # download_file
             )
 
         btn_reset.click(
@@ -860,8 +1069,64 @@ def build_app():
             inputs=[],
             outputs=[
                 status_box, state_history, state_current_idx, state_agenda, 
-                state_participants, chat_display, btn_step, btn_step_bottom, human_input_row, btn_initialize
+                state_participants, chat_display, btn_step, btn_step_bottom, 
+                human_input_row, btn_initialize, download_file
             ]
+        )
+
+        # Preset template selection event
+        preset_dropdown.change(
+            fn=apply_preset,
+            inputs=[preset_dropdown],
+            outputs=[persona_count] + [cfg[key] for cfg in persona_configs for key in ["name", "is_human", "prompt"]]
+        )
+
+        # Set preset selection to "Custom" if any persona configurations are manually edited
+        for cfg in persona_configs:
+            cfg["name"].change(fn=set_custom_preset, inputs=[], outputs=[preset_dropdown])
+            cfg["is_human"].change(fn=set_custom_preset, inputs=[], outputs=[preset_dropdown])
+            cfg["prompt"].change(fn=set_custom_preset, inputs=[], outputs=[preset_dropdown])
+
+        # Random agenda event
+        btn_random_agenda.click(
+            fn=get_random_agenda,
+            inputs=[],
+            outputs=[agenda_input]
+        )
+
+        # Copy log event (Python sets notification and formats, JS copies to clipboard)
+        btn_copy.click(
+            fn=copy_log_python,
+            inputs=[state_history, state_agenda],
+            outputs=[hidden_markdown]
+        ).then(
+            fn=None,
+            inputs=[hidden_markdown],
+            js="""(text) => {
+                if (!text) return;
+                navigator.clipboard.writeText(text).catch(err => {
+                    console.error('Could not copy text: ', err);
+                });
+            }"""
+        )
+
+        # Export log event
+        btn_export.click(
+            fn=export_chat_log,
+            inputs=[state_history, state_agenda],
+            outputs=[download_file]
+        )
+
+        # Load presets on page load
+        def load_presets(request: nn_gradio.Request):
+            lang = get_language(request)
+            choices = get_preset_choices(lang)
+            return nn_gradio.Dropdown(choices=choices, value=choices[0])
+
+        demo.load(
+            fn=load_presets,
+            inputs=[],
+            outputs=[preset_dropdown]
         )
 
     return demo
