@@ -12,10 +12,10 @@ DEFAULT_HF_TOKEN = os.getenv("HF_TOKEN", "")
 DEFAULT_OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
 
 if IS_HF_SPACE:
-    # If in HF Space, default to HF Serverless Inference with Gemma model
+    # If in HF Space, default to HF Serverless Inference with Llama-3 model
     DEFAULT_API_KEY = DEFAULT_HF_TOKEN
     DEFAULT_BASE_URL = "https://api-inference.huggingface.co/v1"
-    DEFAULT_MODEL = "google/gemma-4-E2B-it"
+    DEFAULT_MODEL = "meta-llama/Meta-Llama-3-8B-Instruct"
 else:
     # Default local configuration
     DEFAULT_API_KEY = DEFAULT_OPENAI_KEY
@@ -262,6 +262,8 @@ i18n = nn_gradio.I18n(
         "app_desc": "A tool where multiple AI agents (and you) can converse freely.",
         "api_config": "### ⚙️ 1. OpenAI-compatible API Configuration",
         "api_key": "API Key",
+        "api_key_placeholder": "Leave empty for shared Hugging Face Token...",
+        "api_key_info": "If empty, the shared space token (HF Serverless Inference) will be used. If you hit rate limits, please input your own Hugging Face Token or OpenAI Key.",
         "base_url": "Base URL",
         "model_name": "Model Name",
         "persona_config": "### 👥 2. Persona Settings",
@@ -300,6 +302,8 @@ i18n = nn_gradio.I18n(
         "app_desc": "複数のAIエージェント（とあなた）が自由に対話できるツールです。",
         "api_config": "### ⚙️ 1. OpenAI互換API設定",
         "api_key": "APIキー",
+        "api_key_placeholder": "空欄時は共有Hugging Faceトークンを使用...",
+        "api_key_info": "空欄の場合、Spaceの共有トークン（HF Serverless Inference）を使用します。レート制限などでエラーが発生する場合は、ご自身のHugging FaceトークンまたはOpenAI APIキーを入力してください。",
         "base_url": "ベースURL",
         "model_name": "モデル名",
         "persona_config": "### 👥 2. ペルソナ設定",
@@ -678,7 +682,13 @@ def build_app():
             # --- LEFT COLUMN: SETTINGS ---
             with nn_gradio.Column(scale=4, elem_classes=["glass-panel"]):
                 nn_gradio.Markdown(i18n("api_config"))
-                api_key_input = nn_gradio.Textbox(label=i18n("api_key"), type="password", placeholder="sk-...", value=DEFAULT_API_KEY)
+                api_key_input = nn_gradio.Textbox(
+                    label=i18n("api_key"), 
+                    type="password", 
+                    placeholder=i18n("api_key_placeholder"), 
+                    info=i18n("api_key_info"), 
+                    value=DEFAULT_API_KEY
+                )
                 base_url_input = nn_gradio.Textbox(label=i18n("base_url"), placeholder="https://api.openai.com/v1", value=DEFAULT_BASE_URL)
                 with nn_gradio.Row(elem_classes=["align-end"]):
                     model_input = nn_gradio.Dropdown(
