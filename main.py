@@ -200,14 +200,14 @@ body, html {
 
 /* Refresh Button styling */
 .refresh-btn {
-    height: 42px !important;
-    min-height: 42px !important;
-    max-height: 42px !important;
+    height: 84px !important;
+    min-height: 84px !important;
+    max-height: 84px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
-    font-size: 1.25rem !important;
+    font-size: 2rem !important;
     background: #f1f5f9 !important;
     border: 1px solid rgba(0, 0, 0, 0.1) !important;
     color: #4f46e5 !important;
@@ -477,15 +477,15 @@ RANDOM_AGENDAS = {
         "Should code comments be treated as a code smell (i.e., code should be self-documenting)?"
     ],
     "ja": [
-        "コードのインデントはタブ派かスペース派か？",
+        "君たちはどう生きるか？",
         "2030年までに汎用人工知能（AGI）は実現するか？",
         "人類は火星移住と地球の気候変動対策のどちらを優先すべきか？",
         "ホットドッグはサンドイッチに分類されるべきか？",
         "現代において最も学ぶ価値のあるプログラミング言語とその理由は？",
-        "IT企業においてリモートワークは恒久的な標準スタイルであるべきか？",
+        "てか暑くない？",
         "酢豚にパイナップルを入れるのは許せるか？",
-        "タイムトラベルは理論的に可能か？またその倫理的影響は？",
-        "コードのコメントは不要（コード自身が説明的であるべき）という意見についてどう思うか？"
+        "タイムトラベルができたら何したい？",
+        "宇宙人に会いたい？"
     ]
 }
 
